@@ -133,15 +133,41 @@ async function askQuestion() {
         return;
     }
     
-    const answerSection = document.getElementById('answerSection');
-    const answerBox = document.getElementById('answerBox');
-    const sourcesList = document.getElementById('sourcesList');
-    const timingInfo = document.getElementById('timingInfo');
+    const conversationSection = document.getElementById('conversationSection');
+    const conversationContainer = document.getElementById('conversationContainer');
     
-    answerSection.style.display = 'block';
-    answerBox.innerHTML = '<span class="spinner"></span> Thinking...';
-    sourcesList.innerHTML = '';
-    timingInfo.innerHTML = '';
+    conversationSection.style.display = 'block';
+    
+    // Create conversation item
+    const conversationItem = document.createElement('div');
+    conversationItem.className = 'conversation-item';
+    
+    // Add question
+    const questionHtml = `
+        <div class="conversation-question">
+            <div class="conversation-question-label">Question</div>
+            <div class="conversation-question-text">${escapeHtml(query)}</div>
+        </div>
+    `;
+    
+    // Add loading answer
+    const answerHtml = `
+        <div class="conversation-answer">
+            <div class="conversation-answer-label">
+                Answer
+                <span class="conversation-timing" id="timing-${Date.now()}"></span>
+            </div>
+            <div class="conversation-answer-text">
+                <span class="spinner"></span> Thinking...
+            </div>
+        </div>
+    `;
+    
+    conversationItem.innerHTML = questionHtml + answerHtml;
+    conversationContainer.appendChild(conversationItem);
+    
+    // Scroll to bottom
+    conversationItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
     
     showStatus('queryStatus', '<span class="spinner"></span> Processing your question...', 'info');
     
@@ -165,37 +191,57 @@ async function askQuestion() {
         const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
         
         if (response.ok) {
-            answerBox.textContent = data.answer;
+            // Update answer
+            const answerDiv = conversationItem.querySelector('.conversation-answer');
+            const timingSpan = conversationItem.querySelector('.conversation-timing');
             
-            timingInfo.innerHTML = `
-                Retrieval: ${data.retrieval_time.toFixed(2)}s | 
-                Generation: ${data.generation_time.toFixed(2)}s | 
-                Total: ${totalTime}s
+            timingSpan.textContent = `Retrieval: ${data.retrieval_time.toFixed(2)}s | Generation: ${data.generation_time.toFixed(2)}s | Total: ${totalTime}s`;
+            
+            answerDiv.innerHTML = `
+                <div class="conversation-answer-label">
+                    Answer
+                    <span class="conversation-timing">${timingSpan.textContent}</span>
+                </div>
+                <div class="conversation-answer-text">${renderMarkdown(data.answer)}</div>
             `;
             
-            if (data.sources && data.sources.length > 0) {
-                sourcesList.innerHTML = data.sources.map((source, idx) => `
-                    <div class="source-item">
-                        <h4>Source ${idx + 1} (Score: ${source.score.toFixed(4)})</h4>
-                        <div class="source-content">${source.content}</div>
-                        <div class="source-meta">
-                            <span>Chunk: ${source.chunk_id}</span>
-                            ${source.page_number ? `<span>Page: ${source.page_number}</span>` : ''}
-                        </div>
-                    </div>
-                `).join('');
-            } else {
-                sourcesList.innerHTML = '<p class="text-muted">No sources found</p>';
-            }
-            
             showStatus('queryStatus', `Answer generated in ${totalTime}s`, 'success');
+            
+            // Clear query input
+            document.getElementById('queryInput').value = '';
+            
+            // Save to history
+            addToHistory({
+                query: query,
+                answer: data.answer,
+                sources: data.sources || [],
+                top_k: topK,
+                bm25_weight: bm25Weight,
+                vector_weight: vectorWeight,
+                prompt_template: promptTemplate,
+                response_time: parseFloat(totalTime)
+            });
+            
+            // Scroll to bottom
+            conversationItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
         } else {
-            answerBox.textContent = `Error: ${data.detail}`;
+            const answerDiv = conversationItem.querySelector('.conversation-answer-text');
+            answerDiv.textContent = `Error: ${data.detail}`;
             showStatus('queryStatus', `Error: ${data.detail}`, 'error');
         }
     } catch (error) {
-        answerBox.textContent = `Error: ${error.message}`;
+        const answerDiv = conversationItem.querySelector('.conversation-answer-text');
+        answerDiv.textContent = `Error: ${error.message}`;
         showStatus('queryStatus', `Query failed: ${error.message}`, 'error');
+    }
+}
+
+// Clear conversation
+function clearConversation() {
+    if (confirm('Are you sure you want to clear the conversation?')) {
+        const conversationContainer = document.getElementById('conversationContainer');
+        conversationContainer.innerHTML = '';
+        document.getElementById('conversationSection').style.display = 'none';
     }
 }
 
@@ -229,6 +275,7 @@ function updateWeights(bm25Value) {
 // Load documents on page load and setup event listeners
 window.addEventListener('load', () => {
     loadDocuments();
+    loadHistory();
     
     // Allow Enter key to submit query (Shift+Enter for new line)
     document.getElementById('queryInput').addEventListener('keydown', (e) => {
@@ -238,3 +285,296 @@ window.addEventListener('load', () => {
         }
     });
 });
+
+// ===== QUERY HISTORY MANAGEMENT =====
+
+const HISTORY_KEY = 'researchrag_query_history';
+const MAX_HISTORY_ITEMS = 100;
+
+// Load history from localStorage
+function loadHistory() {
+    const history = getHistory();
+    displayHistory(history);
+}
+
+// Get history from localStorage
+function getHistory() {
+    const stored = localStorage.getItem(HISTORY_KEY);
+    return stored ? JSON.parse(stored) : [];
+}
+
+// Save history to localStorage
+function saveHistory(history) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+// Add new query to history
+function addToHistory(queryData) {
+    let history = getHistory();
+    
+    const historyItem = {
+        id: Date.now(),
+        query: queryData.query,
+        answer: queryData.answer,
+        sources: queryData.sources,
+        timestamp: Date.now(),
+        settings: {
+            top_k: queryData.top_k,
+            bm25_weight: queryData.bm25_weight,
+            vector_weight: queryData.vector_weight,
+            prompt_template: queryData.prompt_template
+        },
+        response_time: queryData.response_time,
+        favorite: false
+    };
+    
+    history.unshift(historyItem);
+    
+    if (history.length > MAX_HISTORY_ITEMS) {
+        history = history.slice(0, MAX_HISTORY_ITEMS);
+    }
+    
+    saveHistory(history);
+    displayHistory(history);
+}
+
+// Toggle favorite status
+function toggleFavorite(id) {
+    const history = getHistory();
+    const item = history.find(h => h.id === id);
+    if (item) {
+        item.favorite = !item.favorite;
+        saveHistory(history);
+        displayHistory(history);
+    }
+}
+
+// Delete history item
+function deleteHistoryItem(id) {
+    let history = getHistory();
+    history = history.filter(h => h.id !== id);
+    saveHistory(history);
+    displayHistory(history);
+}
+
+// Clear all history
+function clearHistory() {
+    if (confirm('Are you sure you want to clear all search history?')) {
+        localStorage.removeItem(HISTORY_KEY);
+        displayHistory([]);
+    }
+}
+
+// Load query from history
+function loadFromHistory(id) {
+    const history = getHistory();
+    const item = history.find(h => h.id === id);
+    
+    if (item) {
+        document.getElementById('queryInput').value = item.query;
+        document.getElementById('topKInput').value = item.settings.top_k;
+        document.getElementById('topKValue').textContent = item.settings.top_k;
+        
+        const bm25Percent = Math.round(item.settings.bm25_weight * 100);
+        document.getElementById('bm25WeightInput').value = bm25Percent;
+        updateWeights(bm25Percent);
+        
+        document.getElementById('promptTemplate').value = item.settings.prompt_template;
+        
+        closeHistory();
+        document.getElementById('queryInput').focus();
+    }
+}
+
+// Display history in sidebar
+function displayHistory(history) {
+    const container = document.getElementById('historyContent');
+    
+    if (!history || history.length === 0) {
+        container.innerHTML = '<p class="text-muted" style="text-align: center; padding: 20px;">No search history yet</p>';
+        return;
+    }
+    
+    const favorites = history.filter(h => h.favorite);
+    const today = history.filter(h => isToday(h.timestamp) && !h.favorite);
+    const yesterday = history.filter(h => isYesterday(h.timestamp) && !h.favorite);
+    const older = history.filter(h => !isToday(h.timestamp) && !isYesterday(h.timestamp) && !h.favorite);
+    
+    let html = '';
+    
+    if (favorites.length > 0) {
+        html += renderHistoryGroup('Favorites', favorites);
+    }
+    if (today.length > 0) {
+        html += renderHistoryGroup('Today', today);
+    }
+    if (yesterday.length > 0) {
+        html += renderHistoryGroup('Yesterday', yesterday);
+    }
+    if (older.length > 0) {
+        html += renderHistoryGroup('Older', older);
+    }
+    
+    container.innerHTML = html;
+}
+
+// Render history group
+function renderHistoryGroup(title, items) {
+    const itemsHtml = items.map(item => `
+        <div class="history-item ${item.favorite ? 'favorite' : ''}" onclick="loadFromHistory(${item.id})">
+            <div class="history-item-header">
+                <div class="history-item-query">${escapeHtml(item.query)}</div>
+                <div class="history-item-actions">
+                    <button class="favorite-btn ${item.favorite ? 'active' : ''}" 
+                            onclick="event.stopPropagation(); toggleFavorite(${item.id})" 
+                            title="${item.favorite ? 'Remove from favorites' : 'Add to favorites'}">
+                        ${item.favorite ? '★' : '☆'}
+                    </button>
+                    <button onclick="event.stopPropagation(); deleteHistoryItem(${item.id})" 
+                            title="Delete">
+                        ×
+                    </button>
+                </div>
+            </div>
+            <div class="history-item-answer">${escapeHtml(item.answer.substring(0, 150))}...</div>
+            <div class="history-item-meta">
+                <span>${formatTimestamp(item.timestamp)}</span>
+                <span>${item.response_time.toFixed(1)}s</span>
+                <span>${item.settings.top_k} chunks</span>
+            </div>
+        </div>
+    `).join('');
+    
+    return `
+        <div class="history-group">
+            <div class="history-group-title">${title}</div>
+            ${itemsHtml}
+        </div>
+    `;
+}
+
+// Filter history by search term
+function filterHistory(searchTerm) {
+    const history = getHistory();
+    
+    if (!searchTerm.trim()) {
+        displayHistory(history);
+        return;
+    }
+    
+    const filtered = history.filter(item => 
+        item.query.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.answer.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    displayHistory(filtered);
+}
+
+// Toggle history sidebar
+function toggleHistory() {
+    const sidebar = document.getElementById('historySidebar');
+    const overlay = document.getElementById('historyOverlay');
+    
+    if (!overlay) {
+        const newOverlay = document.createElement('div');
+        newOverlay.id = 'historyOverlay';
+        newOverlay.className = 'history-overlay';
+        newOverlay.onclick = closeHistory;
+        document.body.appendChild(newOverlay);
+    }
+    
+    sidebar.classList.toggle('open');
+    document.getElementById('historyOverlay').classList.toggle('show');
+}
+
+function closeHistory() {
+    document.getElementById('historySidebar').classList.remove('open');
+    const overlay = document.getElementById('historyOverlay');
+    if (overlay) {
+        overlay.classList.remove('show');
+    }
+}
+
+// Helper functions
+function isToday(timestamp) {
+    const today = new Date();
+    const date = new Date(timestamp);
+    return date.toDateString() === today.toDateString();
+}
+
+function isYesterday(timestamp) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const date = new Date(timestamp);
+    return date.toDateString() === yesterday.toDateString();
+}
+
+function formatTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    
+    if (isToday(timestamp)) {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } else if (isYesterday(timestamp)) {
+        return 'Yesterday ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } else {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Simple markdown to HTML converter
+function renderMarkdown(text) {
+    if (!text) return '';
+    
+    let html = text;
+    
+    // Remove source citations like [Source 1], [Source 2], etc.
+    html = html.replace(/\[Source\s+\d+\]/gi, '');
+    
+    // Escape HTML first
+    html = html.replace(/&/g, '&amp;')
+               .replace(/</g, '&lt;')
+               .replace(/>/g, '&gt;');
+    
+    // Headers
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // Italic
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    
+    // Code blocks
+    html = html.replace(/```([\s\S]+?)```/g, '<pre><code>$1</code></pre>');
+    
+    // Inline code
+    html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+    
+    // Lists (unordered)
+    html = html.replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    
+    // Lists (ordered)
+    html = html.replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    
+    // Line breaks
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
+    
+    // Wrap in paragraph if not already wrapped
+    if (!html.startsWith('<h') && !html.startsWith('<ul') && !html.startsWith('<ol') && !html.startsWith('<pre')) {
+        html = '<p>' + html + '</p>';
+    }
+    
+    return html;
+}
+

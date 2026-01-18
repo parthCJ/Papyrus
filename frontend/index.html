@@ -6,8 +6,32 @@
     <title>ResearchRAG - Document Q&A</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="settings-styles.css">
+    <link rel="stylesheet" href="history-styles.css">
 </head>
 <body>
+    <!-- History Toggle Button -->
+    <button class="history-toggle" id="historyToggle" onclick="toggleHistory()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        History
+    </button>
+
+    <!-- History Sidebar -->
+    <div class="history-sidebar" id="historySidebar">
+        <div class="history-header">
+            <h3>Search History</h3>
+            <div class="history-actions">
+                <input type="text" id="historySearch" placeholder="Search history..." oninput="filterHistory(this.value)">
+                <button onclick="clearHistory()" class="btn-clear">Clear All</button>
+            </div>
+        </div>
+        <div class="history-content" id="historyContent">
+            <p class="text-muted">No search history yet</p>
+        </div>
+    </div>
+
     <div class="container">
         <header>
             <h1>ResearchRAG</h1>
@@ -96,16 +120,13 @@
             <div id="queryStatus" class="status-message"></div>
         </section>
 
-        <!-- Answer Section -->
-        <section class="answer-section" id="answerSection" style="display: none;">
-            <h2>Answer</h2>
-            <div class="answer-box" id="answerBox"></div>
-            <div class="metadata">
-                <span id="timingInfo"></span>
+        <!-- Conversation Section -->
+        <section class="conversation-section" id="conversationSection" style="display: none;">
+            <div class="conversation-header">
+                <h2>Conversation</h2>
+                <button class="btn-clear-chat" onclick="clearConversation()">Clear Chat</button>
             </div>
-            
-            <h3>Sources</h3>
-            <div id="sourcesList" class="sources-list"></div>
+            <div class="conversation-container" id="conversationContainer"></div>
         </section>
     </div>
 
