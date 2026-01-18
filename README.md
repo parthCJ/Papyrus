@@ -1,4 +1,4 @@
-# ResearchRAG
+# Papyrus
 
 RAG system for research papers with hybrid search (BM25 + Vector) and fast LLM generation.
 
