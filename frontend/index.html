@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResearchRAG - Document Q&A</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="settings-styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ResearchRAG</h1>
+            <p>Upload research papers and ask questions</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <h2>Upload Document</h2>
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" accept=".pdf" hidden>
+                <div class="upload-content">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p>Click or drag PDF file here</p>
+                    <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                </div>
+            </div>
+            <div id="uploadStatus" class="status-message"></div>
+        </section>
+
+        <!-- Documents List -->
+        <section class="documents-section">
+            <h2>Uploaded Documents</h2>
+            <button class="btn btn-secondary" onclick="loadDocuments()">Refresh</button>
+            <div id="documentsList" class="documents-list">
+                <p class="text-muted">No documents uploaded yet</p>
+            </div>
+        </section>
+
+        <!-- Query Section -->
+        <section class="query-section">
+            <h2>Ask a Question</h2>
+            <div class="query-controls">
+                <label for="promptTemplate">Prompt Style:</label>
+                <select id="promptTemplate" class="form-control">
+                    <option value="default">Default (Fast & Concise)</option>
+                    <option value="academic">Academic (Formal)</option>
+                    <option value="detailed">Detailed (Comprehensive)</option>
+                    <option value="comparative">Comparative (Analysis)</option>
+                    <option value="summary">Summary (Bullet Points)</option>
+                </select>
+            </div>
+            
+            <div class="retrieval-settings">
+                <h3>Retrieval Settings</h3>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="topKInput">Number of Chunks (top_k):</label>
+                        <div class="slider-container">
+                            <input type="range" id="topKInput" min="1" max="10" value="5" oninput="updateTopKValue(this.value)">
+                            <span id="topKValue" class="slider-value">5</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="bm25WeightInput">BM25 Weight:</label>
+                        <div class="slider-container">
+                            <input type="range" id="bm25WeightInput" min="0" max="100" value="30" oninput="updateWeights(this.value)">
+                            <span id="bm25WeightValue" class="slider-value">0.30</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label for="vectorWeightInput">Vector Weight:</label>
+                        <div class="slider-container">
+                            <input type="range" id="vectorWeightInput" min="0" max="100" value="70" disabled>
+                            <span id="vectorWeightValue" class="slider-value">0.70</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <textarea 
+                id="queryInput" 
+                placeholder="Ask a question about your documents..."
+                rows="3"
+            ></textarea>
+            <button class="btn btn-primary" onclick="askQuestion()">
+                Ask Question
+            </button>
+            <div id="queryStatus" class="status-message"></div>
+        </section>
+
+        <!-- Answer Section -->
+        <section class="answer-section" id="answerSection" style="display: none;">
+            <h2>Answer</h2>
+            <div class="answer-box" id="answerBox"></div>
+            <div class="metadata">
+                <span id="timingInfo"></span>
+            </div>
+            
+            <h3>Sources</h3>
+            <div id="sourcesList" class="sources-list"></div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

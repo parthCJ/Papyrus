@@ -1,0 +1,47 @@
+[
+  {
+    "query": "",
+    "positive": "Provided proper attribution is provided, Google hereby grants permission to reproduce the tables and figures in this paper solely for use in journalistic or scholarly works. Attention Is All You Need Ashish Vaswani∗ Google Brain avaswani@google.com Noam Shazeer∗ Google Brain noam@google.com Niki Par",
+    "negative": "Unrelated text from different field."
+  },
+  {
+    "sentence1": "results and massively accelerating our research. †Work performed while at Google Brain. ‡Work performed while at Google Research. 31st Conference on Neural Information Processing Systems (NIPS 2017), Long Beach, CA, USA. arXiv:1706.03762v7 [cs.CL] 2 Aug 2023 1 Introduction Recurrent neural networks,",
+    "sentence2": "and conditional computation [32], while also improving model performance in case of the latter. The fundamental constraint of sequential computation, however, remains. Attention mechanisms have become an integral part of compelling sequence modeling and transduc- tion models in various tasks, allowi",
+    "score": 0.7
+  },
+  {
+    "sentence1": "the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to oth",
+    "sentence2": "results and massively accelerating our research. †Work performed while at Google Brain. ‡Work performed while at Google Research. 31st Conference on Neural Information Processing Systems (NIPS 2017), Long Beach, CA, USA. arXiv:1706.03762v7 [cs.CL] 2 Aug 2023 1 Introduction Recurrent neural networks,",
+    "score": 0.7
+  },
+  {
+    "query": "",
+    "positive": "results and massively accelerating our research. †Work performed while at Google Brain. ‡Work performed while at Google Research. 31st Conference on Neural Information Processing Systems (NIPS 2017), Long Beach, CA, USA. arXiv:1706.03762v7 [cs.CL] 2 Aug 2023 1 Introduction Recurrent neural networks,",
+    "negative": "Unrelated text from different field."
+  },
+  {
+    "sentence1": "and conditional computation [32], while also improving model performance in case of the latter. The fundamental constraint of sequential computation, however, remains. Attention mechanisms have become an integral part of compelling sequence modeling and transduc- tion models in various tasks, allowi",
+    "sentence2": "positions. In these models, the number of operations required to relate signals from two arbitrary input or output positions grows in the distance between positions, linearly for ConvS2S and logarithmically for ByteNet. This makes it more difficult to learn dependencies between distant positions [12",
+    "score": 0.7
+  },
+  {
+    "query": "",
+    "positive": "positions. In these models, the number of operations required to relate signals from two arbitrary input or output positions grows in the distance between positions, linearly for ConvS2S and logarithmically for ByteNet. This makes it more difficult to learn dependencies between distant positions [12",
+    "negative": "Unrelated text from different field."
+  },
+  {
+    "sentence1": "Provided proper attribution is provided, Google hereby grants permission to reproduce the tables and figures in this paper solely for use in journalistic or scholarly works. Attention Is All You Need Ashish Vaswani∗ Google Brain avaswani@google.com Noam Shazeer∗ Google Brain noam@google.com Niki Par",
+    "sentence2": "the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to oth",
+    "score": 0.7
+  },
+  {
+    "query": "",
+    "positive": "and conditional computation [32], while also improving model performance in case of the latter. The fundamental constraint of sequential computation, however, remains. Attention mechanisms have become an integral part of compelling sequence modeling and transduc- tion models in various tasks, allowi",
+    "negative": "Unrelated text from different field."
+  },
+  {
+    "query": "",
+    "positive": "the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to oth",
+    "negative": "Unrelated text from different field."
+  }
+]
