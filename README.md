@@ -66,8 +66,6 @@ python scripts/generate_training_data.py
 python scripts/finetune_embeddings_new.py --epochs 3
 ```
 
-See [FINETUNING_GUIDE.md](FINETUNING_GUIDE.md) for details.
-
 ## License
 
 MIT
