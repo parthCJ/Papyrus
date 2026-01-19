@@ -7,6 +7,7 @@ from app.api.dependencies import get_hybrid_retriever, get_llm_service
 from app.core.retriever import HybridRetriever
 from app.core.llm_service import LLMService
 from app.utils.logger import setup_logger
+from app.utils.intent_detector import detect_intent
 
 logger = setup_logger(__name__)
 router = APIRouter()
@@ -41,11 +42,17 @@ async def query_documents(
                 total_time=time() - start_time,
             )
 
+        # Auto-detect intent if using default template
+        template = request.prompt_template
+        if template == "default":
+            template = detect_intent(request.query)
+            logger.info(f"Auto-detected intent: {template}")
+
         generation_start = time()
         answer = await llm_service.generate_answer(
             query=request.query,
             context_chunks=retrieved_chunks,
-            prompt_template=request.prompt_template,
+            prompt_template=template,
         )
         generation_time = time() - generation_start
 
@@ -111,6 +118,12 @@ async def query_documents_stream(
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
                 return
 
+            # Auto-detect intent if using default template
+            template = request.prompt_template
+            if template == "default":
+                template = detect_intent(request.query)
+                logger.info(f"Auto-detected intent for stream: {template}")
+
             # Check if LLM service supports streaming
             if hasattr(llm_service, "generate_answer_stream"):
                 # Stream answer
@@ -120,7 +133,7 @@ async def query_documents_stream(
                 async for chunk in llm_service.generate_answer_stream(
                     query=request.query,
                     context_chunks=retrieved_chunks,
-                    prompt_template=request.prompt_template,
+                    prompt_template=template,
                 ):
                     full_answer += chunk
                     yield f"data: {json.dumps({'type': 'answer', 'content': chunk})}\n\n"
@@ -132,7 +145,7 @@ async def query_documents_stream(
                 full_answer = await llm_service.generate_answer(
                     query=request.query,
                     context_chunks=retrieved_chunks,
-                    prompt_template=request.prompt_template,
+                    prompt_template=template,
                 )
                 generation_time = time() - generation_start
                 yield f"data: {json.dumps({'type': 'answer', 'content': full_answer})}\n\n"

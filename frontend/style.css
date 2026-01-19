@@ -402,6 +402,14 @@ textarea {
     color: inherit;
 }
 
+.conversation-answer-text table {
+    margin-top: 0 !important;
+}
+
+.conversation-answer-text > table:first-child {
+    margin-top: 0 !important;
+}
+
 .conversation-sources {
     margin-top: 20px;
     padding-top: 15px;
@@ -539,14 +547,18 @@ textarea {
 }
 
 /* Markdown Tables */
+.conversation-answer-text .markdown-table,
 .markdown-table {
     width: 100%;
     border-collapse: collapse;
-    margin: 20px 0;
-    font-size: 0.95em;
+    margin: 0 0 20px 0;
+    font-size: 0.85em;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     overflow: hidden;
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
 }
 
 .markdown-table thead {
@@ -555,10 +567,14 @@ textarea {
 }
 
 .markdown-table thead th {
-    padding: 14px 18px;
+    padding: 12px 14px;
     text-align: left;
     font-weight: 600;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: normal;
+    word-wrap: break-word;
+    min-width: 100px;
+    max-width: 200px;
 }
 
 .markdown-table thead th:last-child {
@@ -579,9 +595,13 @@ textarea {
 }
 
 .markdown-table tbody td {
-    padding: 12px 18px;
+    padding: 10px 14px;
     border-right: 1px solid #e2e8f0;
     vertical-align: top;
+    white-space: normal;
+    word-wrap: break-word;
+    min-width: 100px;
+    max-width: 200px;
 }
 
 .markdown-table tbody td:last-child {
@@ -591,5 +611,13 @@ textarea {
 .markdown-table tbody td:first-child {
     font-weight: 500;
     background-color: #f8f9fa;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+}
+
+/* Table wrapper for horizontal scroll */
+.conversation-answer-text {
+    overflow-x: auto;
 }
 

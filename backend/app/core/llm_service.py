@@ -33,8 +33,8 @@ class LLMService:
                     "options": {
                         "temperature": 0.5,
                         "top_p": 0.9,
-                        "num_predict": 200,
-                        "num_ctx": 1024,
+                        "num_predict": 500,
+                        "num_ctx": 2048,
                         "num_thread": 8,
                         "stop": ["\n\n\n", "Question:", "Context:"],
                     },
@@ -45,6 +45,12 @@ class LLMService:
             result = response.json()
 
             answer = result.get("response", "").strip()
+
+            # Remove leading/trailing whitespace and blank lines
+            answer = answer.strip()
+            # Remove multiple leading newlines
+            while answer.startswith("\n"):
+                answer = answer[1:]
 
             logger.info(f"Generated answer of length {len(answer)}")
 
@@ -59,12 +65,12 @@ class LLMService:
 
         for i, chunk in enumerate(chunks, 1):
             content = chunk.get("content", "")[
-                :200
-            ]  # Limit to 200 chars per chunk for speed
+                :800
+            ]  # Increased context per chunk for better understanding
 
-            context_parts.append(f"[{i}] {content}")
+            context_parts.append(f"[Source {i}] {content}")
 
-        return "\n".join(context_parts)
+        return "\n\n".join(context_parts)
 
     def _build_prompt(
         self, query: str, context: str, prompt_template: str = "default"

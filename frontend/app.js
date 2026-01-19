@@ -601,7 +601,26 @@ function escapeHtml(text) {
 function renderMarkdown(text) {
     if (!text) return '';
     
-    let html = text;
+    // AGGRESSIVE: Remove ALL leading whitespace and newlines
+    let html = text.replace(/^\s+/, '');
+    
+    // If text contains a table (pipe character), remove EVERYTHING before first table row
+    if (html.includes('|')) {
+        const lines = html.split('\n');
+        let firstTableLine = -1;
+        
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim().includes('|')) {
+                firstTableLine = i;
+                break;
+            }
+        }
+        
+        if (firstTableLine > 0) {
+            // Remove all lines before the table
+            html = lines.slice(firstTableLine).join('\n');
+        }
+    }
     
     // Remove source citations like [Source 1], [Source 2], etc.
     html = html.replace(/\[Source\s+\d+\]/gi, '');
@@ -648,11 +667,24 @@ function renderMarkdown(text) {
     // Lists (ordered)
     html = html.replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>');
     
-    // Line breaks
+    // Line breaks - but preserve tables
     html = html.replace(/\n\n/g, '</p><p>');
     html = html.replace(/\n/g, '<br>');
     
-    // Wrap in paragraph if not already wrapped
+    // AGGRESSIVE cleanup around tables
+    html = html.replace(/(<br>\s*)+(<table)/g, '$2');
+    html = html.replace(/(<\/table>)\s*(<br>)+/g, '$1');
+    html = html.replace(/(<p>)\s*(<table)/g, '$2');
+    html = html.replace(/(<\/table>)\s*(<\/p>)/g, '$1');
+    html = html.replace(/<p>\s*<\/p>/g, '');
+    html = html.replace(/<br>\s*<br>\s*<br>/g, '<br>');
+    
+    // If output starts with table, don't wrap in paragraph
+    if (html.trim().startsWith('<table')) {
+        return html;
+    }
+    
+    // Wrap in paragraph if not already wrapped and not starting with special elements
     if (!html.startsWith('<h') && !html.startsWith('<ul') && !html.startsWith('<ol') && !html.startsWith('<pre') && !html.startsWith('<table')) {
         html = '<p>' + html + '</p>';
     }
@@ -662,47 +694,68 @@ function renderMarkdown(text) {
 
 // Convert markdown table to HTML
 function convertMarkdownTableToHtml(tableText) {
-    const lines = tableText.trim().split('\n').map(line => line.trim()).filter(line => line);
-    
-    if (lines.length === 0) return '';
-    
-    // Filter out separator lines
-    const dataLines = lines.filter(line => !line.match(/^\|?[\s\-:|]+\|[\s\-:|]*$/));
-    
+    if (!tableText) return '';
+
+    // Normalize and split
+    const lines = tableText
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(line => line.trim());
+
+    // Find the FIRST table row
+    const tableStartIndex = lines.findIndex(line => line.startsWith('|'));
+
+    if (tableStartIndex === -1) return '';
+
+    // Extract ONLY table lines
+    const tableLines = lines
+        .slice(tableStartIndex)
+        .filter(line => line.startsWith('|'));
+
+    if (tableLines.length === 0) return '';
+
+    // Remove separator rows
+    const dataLines = tableLines.filter(
+        line => !/^\|[\s\-:|]+\|$/.test(line)
+    );
+
     if (dataLines.length === 0) return '';
-    
-    let html = '<table class="markdown-table">\n';
-    
-    // First row is header
-    const headerCells = dataLines[0].split('|')
-        .map(cell => cell.trim())
-        .filter(cell => cell.length > 0);
-    
-    html += '<thead>\n<tr>\n';
+
+    let html = '<table class="markdown-table" style="margin-top:0;">';
+
+    // Header
+    const headerCells = dataLines[0]
+        .split('|')
+        .map(c => c.trim())
+        .filter(Boolean);
+
+    html += '<thead><tr>';
     headerCells.forEach(cell => {
-        html += `<th>${cell}</th>\n`;
+        html += `<th>${cell}</th>`;
     });
-    html += '</tr>\n</thead>\n';
-    
-    // Remaining rows are body
+    html += '</tr></thead>';
+
+    // Body
     if (dataLines.length > 1) {
-        html += '<tbody>\n';
+        html += '<tbody>';
         for (let i = 1; i < dataLines.length; i++) {
-            const cells = dataLines[i].split('|')
-                .map(cell => cell.trim())
-                .filter(cell => cell.length > 0);
-            
-            html += '<tr>\n';
+            const cells = dataLines[i]
+                .split('|')
+                .map(c => c.trim())
+                .filter(Boolean);
+
+            html += '<tr>';
             cells.forEach(cell => {
-                html += `<td>${cell}</td>\n`;
+                html += `<td>${cell}</td>`;
             });
-            html += '</tr>\n';
+            html += '</tr>';
         }
-        html += '</tbody>\n';
+        html += '</tbody>';
     }
-    
-    html += '</table>\n';
+
+    html += '</table>';
     return html;
 }
+
 
 
