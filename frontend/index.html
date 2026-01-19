@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResearchRAG - Document Q&A</title>
+    <title>Papyrus - Document Q&A</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="settings-styles.css">
     <link rel="stylesheet" href="history-styles.css">
@@ -34,7 +34,7 @@
 
     <div class="container">
         <header>
-            <h1>ResearchRAG</h1>
+            <h1>Papyrus</h1>
             <p>Upload research papers and ask questions</p>
         </header>
 
@@ -109,27 +109,31 @@
                     </div>
                 </div>
             </div>
-            <textarea 
-                id="queryInput" 
-                placeholder="Ask a question about your documents..."
-                rows="3"
-            ></textarea>
-            <button class="btn btn-primary" onclick="askQuestion()">
-                Ask Question
-            </button>
-            <div id="queryStatus" class="status-message"></div>
         </section>
 
         <!-- Conversation Section -->
-        <section class="conversation-section" id="conversationSection" style="display: none;">
-            <div class="conversation-header">
+        <section class="conversation-section" id="conversationSection">
+            <div class="conversation-header" id="conversationHeader" style="display: none;">
                 <h2>Conversation</h2>
                 <button class="btn-clear-chat" onclick="clearConversation()">Clear Chat</button>
             </div>
             <div class="conversation-container" id="conversationContainer"></div>
+            
+            <!-- Query Input Bar (appears after answers like ChatGPT) -->
+            <div class="query-input-bar">
+                <textarea 
+                    id="queryInput" 
+                    placeholder="Ask a question about your documents..."
+                    rows="3"
+                ></textarea>
+                <button class="btn btn-primary" onclick="askQuestion()">
+                    Ask Question
+                </button>
+                <div id="queryStatus" class="status-message"></div>
+            </div>
         </section>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2.0"></script>
 </body>
 </html>

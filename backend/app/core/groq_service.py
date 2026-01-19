@@ -47,6 +47,40 @@ class GroqService:
             logger.error(f"Error generating answer with Groq: {str(e)}")
             return "I apologize, but I encountered an error generating the answer. Please try again."
 
+    async def generate_answer_stream(
+        self,
+        query: str,
+        context_chunks: List[Dict[str, Any]],
+        prompt_template: str = "default",
+    ):
+        """Stream answer generation chunk by chunk"""
+        context_text = self._format_context(context_chunks)
+        prompt = self._build_prompt(query, context_text, prompt_template)
+
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful research assistant. Provide detailed, comprehensive answers based on the provided context from research papers. Include relevant details and explanations.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+                max_tokens=500,
+                top_p=0.9,
+                stream=True,
+            )
+
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+
+        except Exception as e:
+            logger.error(f"Error streaming answer with Groq: {str(e)}")
+            yield "I apologize, but I encountered an error generating the answer. Please try again."
+
     def _format_context(self, chunks: List[Dict[str, Any]]) -> str:
         context_parts = []
 

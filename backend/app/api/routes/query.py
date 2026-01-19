@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from time import time
+import json
 from app.models.schemas import QueryRequest, QueryResponse, Source
 from app.api.dependencies import get_hybrid_retriever, get_llm_service
 from app.core.retriever import HybridRetriever
@@ -80,3 +82,85 @@ async def query_documents(
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
+
+
+@router.post("/stream")
+async def query_documents_stream(
+    request: QueryRequest,
+    retriever: HybridRetriever = Depends(get_hybrid_retriever),
+    llm_service: LLMService = Depends(get_llm_service),
+):
+    """Stream query response with real-time answer generation"""
+
+    async def generate():
+        try:
+            start_time = time()
+
+            # Retrieve chunks
+            retrieval_start = time()
+            retrieved_chunks = await retriever.hybrid_search(
+                query=request.query, top_k=request.top_k
+            )
+            retrieval_time = time() - retrieval_start
+
+            # Send retrieval metadata
+            yield f"data: {json.dumps({'type': 'metadata', 'retrieval_time': retrieval_time, 'chunks': len(retrieved_chunks)})}\n\n"
+
+            if not retrieved_chunks:
+                yield f"data: {json.dumps({'type': 'answer', 'content': 'No relevant documents found for your query.'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+
+            # Check if LLM service supports streaming
+            if hasattr(llm_service, "generate_answer_stream"):
+                # Stream answer
+                generation_start = time()
+                full_answer = ""
+
+                async for chunk in llm_service.generate_answer_stream(
+                    query=request.query,
+                    context_chunks=retrieved_chunks,
+                    prompt_template=request.prompt_template,
+                ):
+                    full_answer += chunk
+                    yield f"data: {json.dumps({'type': 'answer', 'content': chunk})}\n\n"
+
+                generation_time = time() - generation_start
+            else:
+                # Fallback to non-streaming
+                generation_start = time()
+                full_answer = await llm_service.generate_answer(
+                    query=request.query,
+                    context_chunks=retrieved_chunks,
+                    prompt_template=request.prompt_template,
+                )
+                generation_time = time() - generation_start
+                yield f"data: {json.dumps({'type': 'answer', 'content': full_answer})}\n\n"
+
+            # Send sources if requested
+            if request.include_sources:
+                sources = []
+                for chunk_data in retrieved_chunks:
+                    sources.append(
+                        {
+                            "document_id": chunk_data.get("document_id", "unknown"),
+                            "title": chunk_data.get("title", "Unknown"),
+                            "chunk_id": chunk_data.get("chunk_id", "unknown"),
+                            "content": chunk_data.get("content", ""),
+                            "page_number": chunk_data.get("page_number"),
+                            "section_type": chunk_data.get("section_type"),
+                            "score": chunk_data.get("score", 0.0),
+                        }
+                    )
+                yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
+
+            # Send completion metadata
+            total_time = time() - start_time
+            yield f"data: {json.dumps({'type': 'timing', 'generation_time': generation_time, 'total_time': total_time})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        except Exception as e:
+            logger.error(f"Error streaming query: {str(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")

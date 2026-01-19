@@ -4,7 +4,9 @@ const API_BASE = 'http://localhost:8000/api/v1';
 const fileInput = document.getElementById('fileInput');
 const uploadArea = document.getElementById('uploadArea');
 
-uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('click', () => {
+    fileInput.click();
+});
 
 uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -29,7 +31,9 @@ uploadArea.addEventListener('drop', (e) => {
 
 fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-        uploadFile(e.target.files[0]);
+        const file = e.target.files[0];
+        uploadFile(file);
+        e.target.value = ''; // Clear immediately to allow re-upload
     }
 });
 
@@ -135,8 +139,10 @@ async function askQuestion() {
     
     const conversationSection = document.getElementById('conversationSection');
     const conversationContainer = document.getElementById('conversationContainer');
+    const conversationHeader = document.getElementById('conversationHeader');
     
     conversationSection.style.display = 'block';
+    conversationHeader.style.display = 'flex';
     
     // Create conversation item
     const conversationItem = document.createElement('div');
@@ -171,6 +177,68 @@ async function askQuestion() {
     
     showStatus('queryStatus', '<span class="spinner"></span> Processing your question...', 'info');
     
+    const startTime = Date.now();
+    
+    try {
+        // Try streaming first
+        const streamResponse = await fetch(`${API_BASE}/query/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query, top_k: topK, bm25_weight: bm25Weight,
+                vector_weight: vectorWeight, prompt_template: promptTemplate,
+                include_sources: false
+            })
+        });
+        
+        if (streamResponse.ok && streamResponse.body) {
+            // Handle streaming
+            const reader = streamResponse.body.getReader();
+            const decoder = new TextDecoder();
+            let fullAnswer = '';
+            let retrievalTime = 0, generationTime = 0;
+            const answerTextDiv = conversationItem.querySelector('.conversation-answer-text');
+            const timingSpan = conversationItem.querySelector('.conversation-timing');
+            answerTextDiv.innerHTML = '';
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    try {
+                        const data = JSON.parse(line.substring(6));
+                        if (data.type === 'metadata') retrievalTime = data.retrieval_time;
+                        else if (data.type === 'answer') {
+                            fullAnswer += data.content;
+                            answerTextDiv.innerHTML = renderMarkdown(fullAnswer);
+                            conversationItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        } else if (data.type === 'timing') {
+                            generationTime = data.generation_time;
+                            timingSpan.textContent = `Retrieval: ${retrievalTime.toFixed(2)}s | Generation: ${generationTime.toFixed(2)}s | Total: ${((Date.now() - startTime) / 1000).toFixed(2)}s`;
+                        } else if (data.type === 'done') {
+                            showStatus('queryStatus', `Answer generated in ${((Date.now() - startTime) / 1000).toFixed(2)}s`, 'success');
+                            document.getElementById('queryInput').value = '';
+                            addToHistory({
+                                query, answer: fullAnswer, sources: [], top_k: topK,
+                                bm25_weight: bm25Weight, vector_weight: vectorWeight,
+                                prompt_template: promptTemplate,
+                                response_time: parseFloat(((Date.now() - startTime) / 1000).toFixed(2))
+                            });
+                        }
+                    } catch (e) {}
+                }
+            }
+            return;
+        }
+    } catch (streamError) {
+        console.log('Streaming failed, using regular mode');
+    }
+    
+    // Fallback to regular query
     try {
         const startTime = Date.now();
         const response = await fetch(`${API_BASE}/query`, {
@@ -240,8 +308,9 @@ async function askQuestion() {
 function clearConversation() {
     if (confirm('Are you sure you want to clear the conversation?')) {
         const conversationContainer = document.getElementById('conversationContainer');
+        const conversationHeader = document.getElementById('conversationHeader');
         conversationContainer.innerHTML = '';
-        document.getElementById('conversationSection').style.display = 'none';
+        conversationHeader.style.display = 'none';
     }
 }
 
@@ -288,7 +357,7 @@ window.addEventListener('load', () => {
 
 // ===== QUERY HISTORY MANAGEMENT =====
 
-const HISTORY_KEY = 'researchrag_query_history';
+const HISTORY_KEY = 'papyrus_query_history';
 const MAX_HISTORY_ITEMS = 100;
 
 // Load history from localStorage
@@ -537,10 +606,23 @@ function renderMarkdown(text) {
     // Remove source citations like [Source 1], [Source 2], etc.
     html = html.replace(/\[Source\s+\d+\]/gi, '');
     
-    // Escape HTML first
+    // Process tables FIRST - before any escaping
+    const tableMatches = [];
+    html = html.replace(/((?:^\|.+\|[ \t]*$\n?)+)/gm, (match, table) => {
+        const placeholder = `__TABLE_${tableMatches.length}__`;
+        tableMatches.push(convertMarkdownTableToHtml(table));
+        return placeholder;
+    });
+    
+    // Escape HTML 
     html = html.replace(/&/g, '&amp;')
                .replace(/</g, '&lt;')
                .replace(/>/g, '&gt;');
+    
+    // Restore tables (they're already HTML)
+    tableMatches.forEach((tableHtml, index) => {
+        html = html.replace(`__TABLE_${index}__`, tableHtml);
+    });
     
     // Headers
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
@@ -571,10 +653,56 @@ function renderMarkdown(text) {
     html = html.replace(/\n/g, '<br>');
     
     // Wrap in paragraph if not already wrapped
-    if (!html.startsWith('<h') && !html.startsWith('<ul') && !html.startsWith('<ol') && !html.startsWith('<pre')) {
+    if (!html.startsWith('<h') && !html.startsWith('<ul') && !html.startsWith('<ol') && !html.startsWith('<pre') && !html.startsWith('<table')) {
         html = '<p>' + html + '</p>';
     }
     
     return html;
 }
+
+// Convert markdown table to HTML
+function convertMarkdownTableToHtml(tableText) {
+    const lines = tableText.trim().split('\n').map(line => line.trim()).filter(line => line);
+    
+    if (lines.length === 0) return '';
+    
+    // Filter out separator lines
+    const dataLines = lines.filter(line => !line.match(/^\|?[\s\-:|]+\|[\s\-:|]*$/));
+    
+    if (dataLines.length === 0) return '';
+    
+    let html = '<table class="markdown-table">\n';
+    
+    // First row is header
+    const headerCells = dataLines[0].split('|')
+        .map(cell => cell.trim())
+        .filter(cell => cell.length > 0);
+    
+    html += '<thead>\n<tr>\n';
+    headerCells.forEach(cell => {
+        html += `<th>${cell}</th>\n`;
+    });
+    html += '</tr>\n</thead>\n';
+    
+    // Remaining rows are body
+    if (dataLines.length > 1) {
+        html += '<tbody>\n';
+        for (let i = 1; i < dataLines.length; i++) {
+            const cells = dataLines[i].split('|')
+                .map(cell => cell.trim())
+                .filter(cell => cell.length > 0);
+            
+            html += '<tr>\n';
+            cells.forEach(cell => {
+                html += `<td>${cell}</td>\n`;
+            });
+            html += '</tr>\n';
+        }
+        html += '</tbody>\n';
+    }
+    
+    html += '</table>\n';
+    return html;
+}
+
 
