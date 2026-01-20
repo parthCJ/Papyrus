@@ -8,9 +8,11 @@ from app.core.retriever import HybridRetriever
 from app.core.llm_service import LLMService
 from app.utils.logger import setup_logger
 from app.utils.intent_detector import detect_intent
+from app.utils.validators import AnswerValidator
 
 logger = setup_logger(__name__)
 router = APIRouter()
+validator = AnswerValidator()
 
 
 @router.post("/", response_model=QueryResponse)
@@ -55,6 +57,20 @@ async def query_documents(
             prompt_template=template,
         )
         generation_time = time() - generation_start
+
+        # Validate answer (Layer 1 & 2)
+        context_texts = [chunk.get("content", "") for chunk in retrieved_chunks]
+        validation_results = validator.validate_all(
+            answer=answer, question=request.query, context_chunks=context_texts
+        )
+
+        # Log validation results
+        validator.log_validation_results(validation_results, request.query)
+
+        # Add validation warnings to response metadata
+        failures = validator.get_failures(validation_results)
+        if failures:
+            logger.warning(f"Answer validation detected {len(failures)} issue(s)")
 
         sources = []
         if request.include_sources:
@@ -139,6 +155,15 @@ async def query_documents_stream(
                     yield f"data: {json.dumps({'type': 'answer', 'content': chunk})}\n\n"
 
                 generation_time = time() - generation_start
+
+                # Validate answer
+                context_texts = [chunk.get("content", "") for chunk in retrieved_chunks]
+                validation_results = validator.validate_all(
+                    answer=full_answer,
+                    question=request.query,
+                    context_chunks=context_texts,
+                )
+                validator.log_validation_results(validation_results, request.query)
             else:
                 # Fallback to non-streaming
                 generation_start = time()
@@ -148,6 +173,16 @@ async def query_documents_stream(
                     prompt_template=template,
                 )
                 generation_time = time() - generation_start
+
+                # Validate answer
+                context_texts = [chunk.get("content", "") for chunk in retrieved_chunks]
+                validation_results = validator.validate_all(
+                    answer=full_answer,
+                    question=request.query,
+                    context_chunks=context_texts,
+                )
+                validator.log_validation_results(validation_results, request.query)
+
                 yield f"data: {json.dumps({'type': 'answer', 'content': full_answer})}\n\n"
 
             # Send sources if requested

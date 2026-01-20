@@ -29,12 +29,12 @@ class GroqService:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a helpful research assistant. Provide detailed, comprehensive answers based on the provided context from research papers. Include relevant details and explanations.",
+                        "content": "You are a research assistant. ONLY answer using the exact information provided in the context. If information is not in the context, say so. NEVER use general knowledge or make assumptions. Cite sources for every claim.",
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.3,
-                max_tokens=500,
+                temperature=0.1,
+                max_tokens=400,  # Reduced from 500 for faster generation
                 top_p=0.9,
             )
 
@@ -63,12 +63,12 @@ class GroqService:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a helpful research assistant. Provide detailed, comprehensive answers based on the provided context from research papers. Include relevant details and explanations.",
+                        "content": "You are a research assistant. ONLY answer using the exact information provided in the context. If information is not in the context, say so. NEVER use general knowledge or make assumptions. Cite sources for every claim.",
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.3,
-                max_tokens=500,
+                temperature=0.1,
+                max_tokens=400,  # Reduced from 500 for faster generation
                 top_p=0.9,
                 stream=True,
             )
@@ -85,10 +85,16 @@ class GroqService:
         context_parts = []
 
         for i, chunk in enumerate(chunks, 1):
-            content = chunk.get("content", "")[:200]
-            context_parts.append(f"[{i}] {content}")
+            # Reduced from 800 to 600 chars for faster processing
+            content = chunk.get("content", "")[:600]
 
-        return "\n".join(context_parts)
+            # Include document metadata to prevent mixing papers
+            title = chunk.get("title", "Unknown")
+            page = chunk.get("page_number", "?")
+
+            context_parts.append(f"[Source {i}] ({title}, p.{page})\n{content}")
+
+        return "\n\n".join(context_parts)
 
     def _build_prompt(
         self, query: str, context: str, prompt_template: str = "default"

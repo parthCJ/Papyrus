@@ -31,7 +31,8 @@ class Settings(BaseSettings):
     BM25_WEIGHT: float = 0.4
     VECTOR_WEIGHT: float = 0.6
 
-    TOP_K_RETRIEVAL: int = 5
+    # Reduced from 5 to 3 for faster retrieval
+    TOP_K_RETRIEVAL: int = 3
 
     MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024
 

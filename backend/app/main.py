@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from app.config import settings
 from app.api.routes import upload, query, documents
 from app.utils.logger import setup_logger
+from app.core.embedding_service import EmbeddingService
 import os
 
 logger = setup_logger(__name__)
@@ -40,6 +41,12 @@ async def startup_event():
         f"Elasticsearch: {settings.ELASTICSEARCH_HOST}:{settings.ELASTICSEARCH_PORT}"
     )
     logger.info(f"Ollama: {settings.OLLAMA_HOST}")
+
+    # Preload embedding model to avoid first-query delay
+    logger.info("Preloading embedding model...")
+    embedding_service = EmbeddingService()
+    embedding_service.initialize()
+    logger.info("Embedding model preloaded successfully")
 
 
 @app.on_event("shutdown")

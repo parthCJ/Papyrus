@@ -15,18 +15,21 @@ class HybridRetriever:
         self.es_client = es_client
         self.embedding_service = embedding_service
 
-    async def hybrid_search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+    async def hybrid_search(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
         if not self.es_client._initialized:
             await self.es_client.initialize()
 
         if not self.embedding_service._initialized:
             self.embedding_service.initialize()
 
-        bm25_results = await self.es_client.bm25_search(query, top_k=top_k * 2)
+        # Reduced multiplier from 2x to 1.5x for faster retrieval
+        search_k = int(top_k * 1.5)
+
+        bm25_results = await self.es_client.bm25_search(query, top_k=search_k)
 
         query_embedding = self.embedding_service.embed_text(query)
         vector_results = await self.es_client.vector_search(
-            query_embedding, top_k=top_k * 2
+            query_embedding, top_k=search_k
         )
 
         bm25_tuples = [(result["chunk_id"], result) for result in bm25_results]
