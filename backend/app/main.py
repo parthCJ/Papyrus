@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.config import settings
 from app.api.routes import upload, query, documents
 from app.utils.logger import setup_logger
+import os
 
 logger = setup_logger(__name__)
 
@@ -44,15 +47,6 @@ async def shutdown_event():
     logger.info("Shutting down application")
 
 
-@app.get("/")
-async def root():
-    return {
-        "message": f"Welcome to {settings.PROJECT_NAME}",
-        "version": settings.VERSION,
-        "docs": f"{settings.API_V1_STR}/docs",
-    }
-
-
 @app.get("/health")
 async def health_check():
     return {
@@ -60,3 +54,22 @@ async def health_check():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
     }
+
+
+# Serve frontend
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+if os.path.exists(frontend_path):
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api") or full_path == "health":
+            return {"error": "Not found"}
+
+        if full_path == "" or full_path == "/":
+            return FileResponse(os.path.join(frontend_path, "index.html"))
+
+        file_path = os.path.join(frontend_path, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+
+        return FileResponse(os.path.join(frontend_path, "index.html"))
