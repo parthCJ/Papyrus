@@ -60,3 +60,7 @@ data/sample_papers/
 
 elasticsearch_data/
 ollama_data/
+
+# Ignore all markdown files except README.md
+*.md
+!README.md

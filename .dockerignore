@@ -1,0 +1,41 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.git
+.gitignore
+.env
+.venv
+venv/
+ENV/
+env/
+.pytest_cache
+.coverage
+htmlcov
+*.log
+
+# Frontend files (not needed in backend container)
+frontend/
+
+# Data files
+data/
+models/
+
+# Development files
+*.md
+!README_HF.md
+docker-compose.yml
+setup.bat
+setup.sh
+
+# Test files
+tests/
+
+# Scripts
+scripts/

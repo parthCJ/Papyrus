@@ -1,4 +1,9 @@
-const API_BASE = 'http://localhost:8000/api/v1';
+// API Configuration - update BACKEND_URL with your Hugging Face Space URL
+const BACKEND_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:8000'
+    : 'https://YOUR-HF-SPACE-NAME.hf.space';  // Replace with your HF Space URL
+
+const API_BASE = `${BACKEND_URL}/api/v1`;
 
 // File upload handling
 const fileInput = document.getElementById('fileInput');
