@@ -1,3 +1,5 @@
+"""FastAPI application entry point for the Papyrus research-paper assistant."""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +15,7 @@ logger = setup_logger(__name__)
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="RAG System for Research Papers with Hybrid Search",
+    description="Papyrus research-paper assistant with hybrid BM25 and vector search.",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
