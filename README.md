@@ -5,13 +5,8 @@ RAG system for research papers with hybrid search (BM25 + Vector) and fast LLM g
 > **Project status:** Actively maintained and refreshed in November 2026.
 
 ### FNet Token Mixing Repo
+
 -> https://github.com/parthCJ/FNet-Mixing-Token
-
-
-
-
-
-
 
 ## Features
 
